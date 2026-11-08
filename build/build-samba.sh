@@ -19,7 +19,7 @@ cd "samba-${VER}"
   --localstatedir=${PREFIX}/var --with-configdir=${PREFIX}/etc \
   --with-lockdir=${PREFIX}/var/lock --with-piddir=${PREFIX}/var/run \
   --with-privatedir=${PREFIX}/private --with-logfilebase=${PREFIX}/var/log \
-  --without-ad-dc --without-ads --without-gpgme \
+  --without-ad-dc --without-gpgme \
   --disable-cups --disable-avahi
 make -j"$(nproc)"
 rm -rf "${WORK}/stage"
