@@ -16,6 +16,7 @@ on:
       - 'config/**'
       - 'app/**'
       - 'build/**'
+      - '.github/workflows/**'
       - 'ICON.PNG'
       - 'ICON_256.PNG'
 
@@ -74,7 +75,7 @@ jobs:
             --without-ad-dc \
             --without-ads \
             --without-gpgme \
-            --enable-selftest=no \
+            --disable-selftest \
             --disable-cups \
             --disable-avahi
           echo "configure OK"
