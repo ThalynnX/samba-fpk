@@ -47,7 +47,7 @@ jobs:
             libcups2-dev libkrb5-dev libtasn1-bin libparse-yapp-perl \
             libunwind-dev zlib1g-dev libncurses-dev libsystemd-dev \
             libavahi-client-dev libavahi-common-dev libglib2.0-dev \
-            perl flex bison
+            perl flex bison liblmdb-dev xsltproc docbook-xsl libjson-c-dev
 
       - name: Fetch Samba source (v${{ env.SAMBA_VERSION }})
         run: |
