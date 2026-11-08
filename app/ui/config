@@ -1,0 +1,12 @@
+{
+    ".url": {
+        "com.thalynnx.samba.console": {
+            "title": "Samba 文件共享",
+            "icon": "images/icon_{0}.png",
+            "type": "iframe",
+            "protocol": "http",
+            "url": "/cgi/ThirdParty/com.thalynnx.samba/index.cgi",
+            "allUsers": true
+        }
+    }
+}

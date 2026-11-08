@@ -1,0 +1,17 @@
+appname                    = com.thalynnx.samba
+version                    = 4.25.1
+display_name               = Samba 文件共享
+desc                       = <p>Samba 是 Linux/Unix 上的 SMB/CIFS 文件共享实现，本包由 <a href="https://github.com/ThalynnX/samba-fpk" target="_blank">ThalynnX</a> 基于上游 <a href="https://github.com/samba-team/samba" target="_blank">samba-team/samba</a> 源码自动编译，原生适配飞牛 fnOS（ARM64 / RK3566）。</p><h3>说明</h3><p>本应用为独立的 Samba 用户态实例，默认监听 <b>1445</b> 端口，与系统自带的 Samba（445 端口）互不干扰，卸载不影响飞牛面板的共享功能。</p><p>如需用本包接管 445 端口，请先在 fnOS 面板停用自带 SMB 共享，再在本应用控制台把端口改为 445 并重启，否则端口冲突会导致启动失败。</p><p>维护者：ThalynnX（leo@jiuyuewl.cn）。构建方式与日志见项目主页。</p>
+platform                   = all
+source                     = thirdparty
+maintainer                 = ThalynnX
+maintainer_url             = https://github.com/ThalynnX/samba-fpk
+distributor                = ThalynnX
+distributor_url            = https://github.com/ThalynnX/samba-fpk
+desktop_uidir              = ui
+os_min_version             = 0.9.21
+desktop_applaunchname      = com.thalynnx.samba.console
+checkport                  = false
+service_port               = 1445
+disable_authorization_path = false
+changelog                  = 基于上游 samba-team/samba v4.25.1 源码在 GitHub Actions（ARM64 原生 runner）自动编译，打包为 fnOS 原生 FPK。默认端口 1445，不与系统 Samba 冲突；支持控制台添加 SMB 账号、查看状态与日志。

@@ -1,0 +1,8 @@
+[
+    {
+        "stepTitle": "Samba 配置",
+        "items": [
+            { "type": "tips", "helpText": "端口、共享目录、SMB 账号均在应用控制台里修改，保存后自动重启生效。" }
+        ]
+    }
+]

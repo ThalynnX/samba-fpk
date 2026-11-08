@@ -1,0 +1,10 @@
+#!/bin/bash
+
+### 安装前检查：确认二进制完整
+PREFIX="${TRIM_APPDEST}/samba/prefix"
+for b in sbin/smbd bin/smbclient bin/smbpasswd bin/smbcontrol; do
+    if [ ! -x "${PREFIX}/${b}" ]; then
+        echo "[install_init] WARNING: 缺少 ${PREFIX}/${b}"
+    fi
+done
+exit 0

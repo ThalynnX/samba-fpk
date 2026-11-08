@@ -1,0 +1,9 @@
+#!/bin/bash
+
+### 卸载回调：停止进程，保留 smb.conf 与共享数据
+
+bash "${TRIM_APPDEST}/cmd/main" stop 2>/dev/null || true
+rm -f "${TRIM_PKGVAR}"/pids/smbd.pid 2>/dev/null || true
+echo "Samba 已停止；smb.conf 与共享数据保留"
+
+exit 0

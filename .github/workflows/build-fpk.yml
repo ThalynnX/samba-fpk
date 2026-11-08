@@ -1,0 +1,210 @@
+name: Build Samba FPK (com.thalynnx.samba)
+
+on:
+  workflow_dispatch:
+  schedule:
+    # 每周一 03:00 UTC（北京时间 11:00），即每 7 天自动构建一次
+    - cron: '0 3 * * 1'
+  push:
+    branches: [ main ]
+    paths:
+      - 'manifest'
+      - 'cmd/**'
+      - 'wizard/**'
+      - 'config/**'
+      - 'app/**'
+      - 'build/**'
+      - 'ICON.PNG'
+      - 'ICON_256.PNG'
+  tags:
+    - 'v*'
+
+permissions:
+  contents: write
+
+env:
+  APP_ID: com.thalynnx.samba
+  SAMBA_VERSION: 4.25.1
+  PREFIX: /usr/local/samba
+
+jobs:
+  # ── 第一步：在 ARM64 原生 runner 上编译 Samba ─────────────────
+  build-binaries:
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - name: Checkout build repo
+        uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential pkg-config python3-dev python3-setuptools \
+            libgnutls28-dev libacl1-dev libattr1-dev libldap2-dev \
+            libpopt-dev libjson-perl libarchive-dev libjansson-dev \
+            libreadline-dev libbsd-dev libdb-dev libicu-dev \
+            libcups2-dev libkrb5-dev libtasn1-bin libparse-yapp-perl \
+            libunwind-dev zlib1g-dev libncurses-dev libsystemd-dev \
+            libavahi-client-dev libavahi-common-dev libglib2.0-dev \
+            perl flex bison
+
+      - name: Fetch Samba source (v${{ env.SAMBA_VERSION }})
+        run: |
+          set -e
+          mkdir -p src
+          for i in 1 2 3; do
+            curl -fsSL --connect-timeout 20 --max-time 600 \
+              "https://download.samba.org/pub/samba/stable/samba-${SAMBA_VERSION}.tar.gz" \
+              -o src/samba.tar.gz && break || { echo "第 ${i} 次下载失败，重试..."; sleep 10; }
+          done
+          tar -xzf src/samba.tar.gz -C src
+          ls -d src/samba-${SAMBA_VERSION}
+
+      - name: Configure
+        run: |
+          cd src/samba-${SAMBA_VERSION}
+          ./configure \
+            --prefix=${PREFIX} \
+            --localstatedir=${PREFIX}/var \
+            --with-configdir=${PREFIX}/etc \
+            --with-lockdir=${PREFIX}/var/lock \
+            --with-piddir=${PREFIX}/var/run \
+            --with-privatedir=${PREFIX}/private \
+            --with-logfilebase=${PREFIX}/var/log \
+            --without-ad-dc \
+            --without-ads \
+            --without-gpgme \
+            --enable-selftest=no \
+            --disable-cups \
+            --disable-avahi
+          echo "configure OK"
+
+      - name: Compile
+        run: |
+          cd src/samba-${SAMBA_VERSION}
+          make -j"$(nproc)"
+          echo "compile OK"
+
+      - name: Install into staging dir
+        run: |
+          cd src/samba-${SAMBA_VERSION}
+          make install DESTDIR="$GITHUB_WORKSPACE/stage"
+          du -sh "$GITHUB_WORKSPACE/stage"
+          ls "$GITHUB_WORKSPACE/stage/usr/local/samba"
+
+      - name: Strip binaries
+        run: |
+          find "$GITHUB_WORKSPACE/stage/usr/local/samba" -type f \
+            \( -path '*/sbin/*' -o -path '*/bin/*' -o -name '*.so*' \) \
+            -exec strip --strip-unneeded {} + 2>/dev/null || true
+
+      - name: Pack prefix
+        run: |
+          tar -czf samba-prefix.tar.gz -C "$GITHUB_WORKSPACE/stage/usr/local" samba
+          ls -lh samba-prefix.tar.gz
+
+      - name: Upload prefix artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: samba-prefix
+          path: samba-prefix.tar.gz
+          retention-days: 30
+
+  # ── 第二步：在 amd64 runner 上用 fnpack 打成 FPK ─────────────────
+  package-fpk:
+    needs: build-binaries
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout build repo
+        uses: actions/checkout@v4
+
+      - name: Download prefix artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: samba-prefix
+          path: .
+
+      - name: Download fnpack
+        run: |
+          for i in 1 2 3 4 5; do
+            curl -sL --connect-timeout 20 --max-time 300 \
+              https://static2.fnnas.com/fnpack/fnpack-1.2.3-linux-amd64 \
+              -o /usr/local/bin/fnpack && break
+            echo "第 ${i} 次下载 fnpack 失败，5 秒后重试..."
+            sleep 5
+          done
+          chmod +x /usr/local/bin/fnpack
+          fnpack --help | head -5
+
+      - name: Lay out app payload
+        run: |
+          set -e
+          mkdir -p app/samba/prefix
+          tar -xzf samba-prefix.tar.gz -C app/samba/prefix --strip-components=1
+          # samba-prefix.tar.gz 内部路径为 samba/...，解出后应落在 app/samba/prefix/{bin,sbin,...}
+          ls app/samba/prefix | head
+          test -x app/samba/prefix/sbin/smbd || { echo "缺少 smbd"; exit 1; }
+          du -sh app/samba/prefix
+
+      - name: Build date (北京时间)
+        run: |
+          echo "DATE=$(TZ=Asia/Shanghai date +%Y%m%d)" >> "$GITHUB_ENV"
+
+      - name: Sync manifest version
+        run: |
+          sed -i "s/^version[[:space:]]*=.*/version                    = ${SAMBA_VERSION}/" manifest
+          grep '^version' manifest
+
+      - name: Validate scripts & JSON
+        run: |
+          for f in cmd/* app/ui/index.cgi; do bash -n "$f" || { echo "Syntax error: $f"; exit 1; }; done
+          for j in config/privilege config/resource app/ui/config wizard/*; do
+            python3 -c "import json;json.load(open('$j'))" || { echo "Invalid JSON: $j"; exit 1; }
+          done
+
+      - name: Package app.tgz
+        run: |
+          tar -czf app.tgz -C app .
+          ls -lh app.tgz
+
+      - name: Build FPK
+        run: |
+          fnpack build
+          ls -la *.fpk
+
+      - name: Verify artifact
+        run: |
+          test -f ${APP_ID}.fpk
+          cp ${APP_ID}.fpk ${APP_ID}-${DATE}.fpk
+          ls -lh ${APP_ID}*.fpk
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${APP_ID}-fpk
+          path: ${{ env.APP_ID }}-*.fpk
+
+      - name: Upload to Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ env.SAMBA_VERSION }}
+          files: ${{ env.APP_ID }}-${{ env.DATE }}.fpk
+          name: Samba ${{ env.SAMBA_VERSION }} (fnOS FPK / ARM64)
+          body: |
+            基于上游 samba-team/samba v${{ env.SAMBA_VERSION }} 源码，在 ARM64 原生 runner 上编译并打包的飞牛 fnOS 应用。
+
+            ## 安装
+            - 下载本 Release 中**日期最新**的 `com.thalynnx.samba-YYYYMMDD.fpk` 安装。
+            - 默认监听 **1445** 端口，不与系统自带 Samba（445）冲突。
+
+            ## 使用
+            - 安装后从应用中心「Samba 文件共享」进入控制台：启停、添加 SMB 账号、查看日志与配置。
+            - 共享目录默认 `/vol1`，可在控制台或配置文件调整。
+            - 如需接管 445：先在 fnOS 面板停用自带 SMB，再把本应用端口改为 445 并重启。
+
+            ## 说明
+            - 应用标识 `com.thalynnx.samba`，独立应用，卸载不影响系统共享。
+            - 每 7 天自动跟随上游构建一次，Release 按日期保留。
+          generate_release_notes: false
+          fail_on_unmatched_files: false
+          make_latest: false

@@ -1,0 +1,26 @@
+#!/bin/bash
+
+### 配置回调：把向导里的端口 / 共享目录 / 工作组写回 smb.conf 并重启服务
+### 只在用户确实填了值时才修改，避免把已有配置冲掉
+
+CONF="${TRIM_PKGETC}/smb.conf"
+[ -f "${CONF}" ] || { echo "[config_callback] 未找到 ${CONF}"; exit 0; }
+
+if [ -n "${wizard_port}" ]; then
+    sed -i -E "s#^(\s*smb ports\s*=\s*)[0-9]+#\1${wizard_port}#" "${CONF}"
+fi
+if [ -n "${wizard_workgroup}" ]; then
+    sed -i -E "s#^(\s*workgroup\s*=\s*).*#\1${wizard_workgroup}#" "${CONF}"
+fi
+if [ -n "${wizard_share_path}" ]; then
+    awk -v p="${wizard_share_path}" '
+        /^\s*path\s*=/ && insec==1 { sub(/^\s*path\s*=\s*.*/, "   path = " p); }
+        /^\[/ { insec = ($0 ~ /^\[shared\]/) ? 1 : 0 }
+        { print }
+    ' "${CONF}" > "${CONF}.tmp" && mv "${CONF}.tmp" "${CONF}"
+fi
+
+echo "[config_callback] 配置已更新，重启服务"
+bash "${TRIM_APPDEST}/cmd/main" restart 2>/dev/null || true
+
+exit 0

@@ -1,0 +1,14 @@
+{
+    "data-share": {
+        "shares": [
+            {
+                "name": "com.thalynnx.samba",
+                "permission": {
+                    "rw": [
+                        "com.thalynnx.samba"
+                    ]
+                }
+            }
+        ]
+    }
+}

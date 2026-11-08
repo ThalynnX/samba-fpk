@@ -1,0 +1,6 @@
+app/samba/prefix/
+stage/
+src/
+*.tar.gz
+*.fpk
+app.tgz

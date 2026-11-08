@@ -1,0 +1,7 @@
+#!/bin/bash
+
+### 升级后：沿用原 smb.conf（如版本升级需要重建，可在此扩展）
+
+echo "[upgrade_callback] 保留现有 smb.conf"
+
+exit 0

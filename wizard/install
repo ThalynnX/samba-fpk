@@ -1,0 +1,24 @@
+[
+    {
+        "stepTitle": "欢迎使用 Samba 文件共享",
+        "items": [
+            { "type": "tips", "helpText": "本应用由 ThalynnX 基于上游 samba-team/samba 源码自动编译，原生适配飞牛 fnOS（ARM64 / RK3566），每 7 天自动跟随上游构建。" },
+            { "type": "tips", "helpText": "默认监听 <b>1445</b> 端口，与系统自带 Samba（445）互不干扰，卸载不会影响飞牛面板的共享功能。" }
+        ]
+    },
+    {
+        "stepTitle": "安装后必做",
+        "items": [
+            { "type": "tips", "helpText": "1. 安装完成后从应用中心打开「Samba 文件共享」控制台，先「添加 SMB 账号」（用户名须是系统已存在的用户，例如 root 或你的飞牛账号）。" },
+            { "type": "tips", "helpText": "2. 在控制台把共享目录改成你要共享的路径（默认 /vol1），保存后自动重启生效。" },
+            { "type": "tips", "helpText": "3. Windows 访问：<code>\\\\NAS的IP:1445\\shared</code>，认证时填刚添加的账号密码。" }
+        ]
+    },
+    {
+        "stepTitle": "关于 445 端口",
+        "items": [
+            { "type": "tips", "helpText": "若要让本包接管标准的 445 端口（Windows 直接 \\\\NAS 访问），必须先在 fnOS 面板停用自带 SMB 共享，再在控制台把端口改成 <b>445</b> 并重启，否则会因端口占用启动失败。" },
+            { "type": "tips", "helpText": "请注意：接管 445 后飞牛面板里的共享管理将不再生效，共享配置改由本应用控制台的 smb.conf 接管。建议先并行测试，确认稳定后再切换。" }
+        ]
+    }
+]

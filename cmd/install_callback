@@ -1,0 +1,68 @@
+#!/bin/bash
+
+### 安装回调：生成默认 smb.conf、初始化 private/var 目录、修正权限
+### 原则：任何一步失败都不中止安装，只在日志里记录
+
+PREFIX="${TRIM_APPDEST}/samba/prefix"
+CONF="${TRIM_PKGETC}/smb.conf"
+LOG="${TRIM_PKGVAR}/install.log"
+PORT="${wizard_port:-1445}"
+SHARE="${wizard_share_path:-/vol1}"
+WG="${wizard_workgroup:-WORKGROUP}"
+
+mkdir -p "${TRIM_PKGVAR}" "${TRIM_PKGETC}" \
+         "${PREFIX}/private" "${PREFIX}/var/lock" \
+         "${PREFIX}/var/run" "${PREFIX}/var/log" "${PREFIX}/etc" 2>/dev/null || true
+
+log_msg() {
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - $1" | tee -a "${LOG}" 2>/dev/null || true
+}
+
+log_msg "开始安装 Samba（端口 ${PORT}，共享目录 ${SHARE}）..."
+
+if [ -f "${CONF}" ]; then
+    log_msg "检测到已有 smb.conf，保留原配置不覆盖"
+else
+cat > "${CONF}" <<EOF
+[global]
+   workgroup = ${WG}
+   server string = fnOS Samba (ThalynnX)
+   security = user
+   map to guest = Bad User
+   server role = standalone server
+   smb ports = ${PORT}
+   passdb backend = tdbsam
+   private dir = ${PREFIX}/private
+   lock directory = ${PREFIX}/var/lock
+   state directory = ${PREFIX}/var/locks
+   cache directory = ${PREFIX}/var/cache
+   pid directory = ${TRIM_PKGVAR}/pids
+   log file = ${TRIM_PKGVAR}/log/log.%m
+   max log size = 2048
+   load printers = no
+   printing = bsd
+   disable spoolss = yes
+   unix charset = UTF-8
+   dos charset = CP936
+
+[shared]
+   comment = fnOS 共享（ThalynnX 自编译 Samba）
+   path = ${SHARE}
+   browseable = yes
+   writable = yes
+   guest ok = no
+   create mask = 0664
+   directory mask = 0775
+EOF
+    log_msg "已生成默认配置 ${CONF}"
+fi
+
+chmod -R 700 "${PREFIX}/private" 2>/dev/null || true
+chown -R "${TRIM_USERNAME}:${TRIM_GROUPNAME}" "${TRIM_PKGVAR}" "${TRIM_PKGETC}" 2>/dev/null || true
+chmod -R 755 "${TRIM_PKGVAR}" "${TRIM_PKGETC}" 2>/dev/null || true
+
+log_msg "初始化 SMB 密码数据库..."
+"${PREFIX}/bin/smbpasswd" -s -a root <<< 'nopasswd' >/dev/null 2>&1 || true
+
+log_msg "安装完成。默认端口 ${PORT}，请在控制台添加 SMB 账号后访问 \\\\NAS:${PORT}\\shared"
+exit 0

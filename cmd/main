@@ -1,0 +1,103 @@
+#!/bin/bash
+
+### Samba 生命周期管理（com.thalynnx.samba）
+### 说明：以 root 运行（绑定 <1024 端口 / 设置 SMB 账号需要特权），
+### 进程由 smbd 自身 daemon 化，PID 写在 var 目录。
+
+PREFIX="${TRIM_APPDEST}/samba/prefix"
+SMBD="${PREFIX}/sbin/smbd"
+CONF="${TRIM_PKGETC}/smb.conf"
+PID_DIR="${TRIM_PKGVAR}/pids"
+LOG_FILE="${TRIM_PKGVAR}/samba.log"
+
+mkdir -p "${PID_DIR}" "${TRIM_PKGVAR}/log" 2>/dev/null || true
+
+log_msg() {
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - $1" >> "${LOG_FILE}"
+}
+
+smb_pid() {
+    local f="${PID_DIR}/smbd.pid"
+    [ -f "$f" ] && head -n 1 "$f" | tr -d '[:space:]'
+}
+
+is_running() {
+    local pid
+    pid="$(smb_pid)"
+    [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null
+}
+
+# 端口占用检查：避免与系统 Samba（445）撞车
+port_busy() {
+    local port="$1"
+    if command -v ss >/dev/null 2>&1; then
+        ss -ltn 2>/dev/null | awk '{print $4}' | grep -qE "[:.]${port}$"
+    else
+        return 1
+    fi
+}
+
+start_process() {
+    if is_running; then
+        return 0
+    fi
+
+    if [ ! -x "${SMBD}" ]; then
+        log_msg "ERROR: smbd not found at ${SMBD}"
+        return 1
+    fi
+
+    if [ ! -f "${CONF}" ]; then
+        log_msg "ERROR: smb.conf not found at ${CONF}"
+        return 1
+    fi
+
+    local port
+    port="$(grep -E '^[[:space:]]*smb ports[[:space:]]*=' "${CONF}" | tail -1 | sed -E 's/.*=[[:space:]]*([0-9]+).*/\1/')"
+    port="${port:-1445}"
+
+    if port_busy "${port}"; then
+        log_msg "ERROR: 端口 ${port} 已被占用（多为系统自带 Samba）。请改端口或先停用面板 SMB。"
+        return 1
+    fi
+
+    log_msg "Starting smbd on port ${port} ..."
+    "${SMBD}" -D -s "${CONF}" \
+        --pid-directory="${PID_DIR}" \
+        --log-basename="${TRIM_PKGVAR}/log/samba" \
+        >> "${LOG_FILE}" 2>&1
+
+    sleep 1
+    if is_running; then
+        log_msg "smbd started, pid=$(smb_pid)"
+        return 0
+    fi
+    log_msg "ERROR: smbd 启动失败，详见 ${TRIM_PKGVAR}/log/"
+    return 1
+}
+
+stop_process() {
+    local pid
+    pid="$(smb_pid)"
+    if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
+        log_msg "Stopping smbd (pid=${pid}) ..."
+        "${PREFIX}/bin/smbcontrol" "$pid" shutdown 2>/dev/null \
+            || kill -TERM "$pid" 2>/dev/null
+        local n=0
+        while kill -0 "$pid" 2>/dev/null && [ $n -lt 15 ]; do
+            sleep 1; n=$((n + 1))
+        done
+        kill -KILL "$pid" 2>/dev/null || true
+        log_msg "smbd stopped"
+    fi
+    rm -f "${PID_DIR}/smbd.pid"
+    return 0
+}
+
+case "$1" in
+    start)   start_process ;;
+    stop)    stop_process ;;
+    status)  if is_running; then exit 0; else exit 3; fi ;;
+    restart) stop_process; start_process ;;
+    *)       exit 1 ;;
+esac
