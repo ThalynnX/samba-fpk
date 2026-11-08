@@ -49,6 +49,16 @@ jobs:
             libavahi-client-dev libavahi-common-dev libglib2.0-dev \
             perl flex bison liblmdb-dev xsltproc docbook-xsl libjson-c-dev libpam0g-dev libcrypt-dev libsasl2-dev
 
+      - name: Resolve latest Samba version (跟随上游)
+        run: |
+          set -e
+          V=$(curl -fsSL --max-time 60 https://download.samba.org/pub/samba/stable/ \
+              | grep -oE 'samba-4\.2[0-9]\.[0-9]+\.tar\.gz' | sort -V | tail -1 \
+              | sed -E 's/samba-(.*)\.tar\.gz/\1/')
+          if [ -z "$V" ]; then V="${SAMBA_VERSION}"; fi
+          echo "SAMBA_VERSION=$V" >> "$GITHUB_ENV"
+          echo "上游最新稳定版: $V"
+
       - name: Fetch Samba source (v${{ env.SAMBA_VERSION }})
         run: |
           set -e
@@ -149,6 +159,16 @@ jobs:
         run: |
           echo "DATE=$(TZ=Asia/Shanghai date +%Y%m%d)" >> "$GITHUB_ENV"
 
+      - name: Resolve latest Samba version (跟随上游)
+        run: |
+          set -e
+          V=$(curl -fsSL --max-time 60 https://download.samba.org/pub/samba/stable/ \
+              | grep -oE 'samba-4\.2[0-9]\.[0-9]+\.tar\.gz' | sort -V | tail -1 \
+              | sed -E 's/samba-(.*)\.tar\.gz/\1/')
+          if [ -z "$V" ]; then V="${SAMBA_VERSION}"; fi
+          echo "SAMBA_VERSION=$V" >> "$GITHUB_ENV"
+          echo "上游最新稳定版: $V"
+
       - name: Sync manifest version
         run: |
           sed -i "s/^version[[:space:]]*=.*/version                    = ${SAMBA_VERSION}/" manifest
@@ -180,7 +200,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${APP_ID}-fpk
+          name: ${{ env.APP_ID }}-fpk
           path: ${{ env.APP_ID }}-*.fpk
 
       - name: Upload to Release
