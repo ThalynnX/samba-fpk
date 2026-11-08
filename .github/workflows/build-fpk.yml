@@ -7,6 +7,8 @@ on:
     - cron: '0 3 * * 1'
   push:
     branches: [ main ]
+    tags:
+      - 'v*'
     paths:
       - 'manifest'
       - 'cmd/**'
@@ -16,8 +18,6 @@ on:
       - 'build/**'
       - 'ICON.PNG'
       - 'ICON_256.PNG'
-  tags:
-    - 'v*'
 
 permissions:
   contents: write
