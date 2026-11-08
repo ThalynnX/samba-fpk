@@ -4,7 +4,21 @@
 ### 说明：以 root 运行（绑定 <1024 端口 / 设置 SMB 账号需要特权），
 ### 进程由 smbd 自身 daemon 化，PID 写在 var 目录。
 
+APP_ROOT="/var/apps/com.thalynnx.samba"
+
+# fnOS 启动时会注入 TRIM_*；从控制台/CGI 或手动调用时兜底，避免路径为空
+: "${TRIM_APPDEST:=${APP_ROOT}/target}"
+: "${TRIM_PKGVAR:=${APP_ROOT}/var}"
+: "${TRIM_PKGETC:=${APP_ROOT}/etc}"
+: "${TRIM_USERNAME:=com.thalynnx.samba}"
+: "${TRIM_GROUPNAME:=com.thalynnx.samba}"
+export TRIM_APPDEST TRIM_PKGVAR TRIM_PKGETC TRIM_USERNAME TRIM_GROUPNAME
+
 PREFIX="${TRIM_APPDEST}/samba/prefix"
+
+# Samba 的私有库在 lib/ 与 lib/private/，不设路径会报 libsecrets3-private-samba.so 找不到
+LD_LIBRARY_PATH="${PREFIX}/lib:${PREFIX}/lib/private${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+export LD_LIBRARY_PATH
 SMBD="${PREFIX}/sbin/smbd"
 CONF="${TRIM_PKGETC}/smb.conf"
 PID_DIR="${TRIM_PKGVAR}/pids"

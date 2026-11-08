@@ -30,9 +30,9 @@ if [ "$REQUEST_METHOD" = "POST" ]; then
     PATH_="$(echo "$BODY" | tr '&' '\n' | grep '^path=' | head -1 | cut -d= -f2- | sed 's/+/ /g')"
 
     case "$ACTION" in
-        restart) bash /var/apps/${APP_ID}/target/cmd/main restart >/dev/null 2>&1; msg="已重启" ;;
-        start)   bash /var/apps/${APP_ID}/target/cmd/main start   >/dev/null 2>&1; msg="已启动" ;;
-        stop)    bash /var/apps/${APP_ID}/target/cmd/main stop    >/dev/null 2>&1; msg="已停止" ;;
+        restart) bash /var/apps/${APP_ID}/cmd/main restart >/dev/null 2>&1; msg="已重启" ;;
+        start)   bash /var/apps/${APP_ID}/cmd/main start   >/dev/null 2>&1; msg="已启动" ;;
+        stop)    bash /var/apps/${APP_ID}/cmd/main stop    >/dev/null 2>&1; msg="已停止" ;;
         adduser)
             if [ -n "$USER_" ] && [ -n "$PASS_" ]; then
                 out=$(printf '%s\n%s\n' "$PASS_" "$PASS_" | "${PREFIX}/bin/smbpasswd" -s -a "$USER_" 2>&1)
@@ -43,7 +43,7 @@ if [ "$REQUEST_METHOD" = "POST" ]; then
         setport)
             if echo "$PORT_" | grep -qE '^[0-9]+$'; then
                 sed -i -E "s#^(\s*smb ports\s*=\s*)[0-9]+#\1${PORT_}#" "$CONF"
-                bash /var/apps/${APP_ID}/target/cmd/main restart >/dev/null 2>&1
+                bash /var/apps/${APP_ID}/cmd/main restart >/dev/null 2>&1
                 msg="端口已改为 ${PORT_} 并重启"
             else
                 msg="端口非法"
@@ -51,7 +51,7 @@ if [ "$REQUEST_METHOD" = "POST" ]; then
         setpath)
             if [ -n "$PATH_" ]; then
                 awk -v p="$PATH_" '/^\[shared\]/{s=1} /^\s*path\s*=/{if(s){sub(/path\s*=.*/,"path = " p)}} {print}' "$CONF" > "$CONF.tmp" && mv "$CONF.tmp" "$CONF"
-                bash /var/apps/${APP_ID}/target/cmd/main restart >/dev/null 2>&1
+                bash /var/apps/${APP_ID}/cmd/main restart >/dev/null 2>&1
                 msg="共享目录已改为 ${PATH_} 并重启"
             else
                 msg="目录为空"

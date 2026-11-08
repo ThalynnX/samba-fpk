@@ -21,6 +21,6 @@ if [ -n "${wizard_share_path}" ]; then
 fi
 
 echo "[config_callback] 配置已更新，重启服务"
-bash "${TRIM_APPDEST}/cmd/main" restart 2>/dev/null || true
+bash "$(dirname "${TRIM_APPDEST}")/cmd/main" restart 2>/dev/null || true
 
 exit 0

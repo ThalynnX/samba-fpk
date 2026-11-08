@@ -10,9 +10,12 @@ PORT="${wizard_port:-1445}"
 SHARE="${wizard_share_path:-/vol1}"
 WG="${wizard_workgroup:-WORKGROUP}"
 
-mkdir -p "${TRIM_PKGVAR}" "${TRIM_PKGETC}" \
-         "${PREFIX}/private" "${PREFIX}/var/lock" \
-         "${PREFIX}/var/run" "${PREFIX}/var/log" "${PREFIX}/etc" 2>/dev/null || true
+LD_LIBRARY_PATH="${PREFIX}/lib:${PREFIX}/lib/private${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+export LD_LIBRARY_PATH
+
+mkdir -p "${TRIM_PKGVAR}" "${TRIM_PKGETC}" "${TRIM_PKGETC}/private" \
+         "${TRIM_PKGVAR}/lock" "${TRIM_PKGVAR}/state" "${TRIM_PKGVAR}/cache" \
+         "${TRIM_PKGVAR}/log" "${TRIM_PKGVAR}/pids" 2>/dev/null || true
 
 log_msg() {
     echo "$(date '+%Y-%m-%d %H:%M:%S') - $1" | tee -a "${LOG}" 2>/dev/null || true
@@ -32,10 +35,10 @@ cat > "${CONF}" <<EOF
    server role = standalone server
    smb ports = ${PORT}
    passdb backend = tdbsam
-   private dir = ${PREFIX}/private
-   lock directory = ${PREFIX}/var/lock
-   state directory = ${PREFIX}/var/locks
-   cache directory = ${PREFIX}/var/cache
+   private dir = ${TRIM_PKGETC}/private
+   lock directory = ${TRIM_PKGVAR}/lock
+   state directory = ${TRIM_PKGVAR}/state
+   cache directory = ${TRIM_PKGVAR}/cache
    pid directory = ${TRIM_PKGVAR}/pids
    log file = ${TRIM_PKGVAR}/log/log.%m
    max log size = 2048
@@ -57,7 +60,7 @@ EOF
     log_msg "已生成默认配置 ${CONF}"
 fi
 
-chmod -R 700 "${PREFIX}/private" 2>/dev/null || true
+chmod -R 700 "${TRIM_PKGETC}/private" 2>/dev/null || true
 chown -R "${TRIM_USERNAME}:${TRIM_GROUPNAME}" "${TRIM_PKGVAR}" "${TRIM_PKGETC}" 2>/dev/null || true
 chmod -R 755 "${TRIM_PKGVAR}" "${TRIM_PKGETC}" 2>/dev/null || true
 

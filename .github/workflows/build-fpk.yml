@@ -32,14 +32,17 @@ jobs:
   # ── 第一步：在 ARM64 原生 runner 上编译 Samba ─────────────────
   build-binaries:
     runs-on: ubuntu-24.04-arm
+    # 关键：在 Debian 12 (bookworm) 容器里编译，glibc 2.36 / 库名与飞牛 fnOS 完全一致
+    container:
+      image: debian:bookworm
     steps:
       - name: Checkout build repo
         uses: actions/checkout@v4
 
       - name: Install build dependencies
         run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
+          apt-get update
+          apt-get install -y --no-install-recommends \
             build-essential pkg-config python3-dev python3-setuptools \
             libgnutls28-dev libacl1-dev libattr1-dev libldap2-dev \
             libpopt-dev libjson-perl libarchive-dev libjansson-dev \
@@ -47,7 +50,7 @@ jobs:
             libcups2-dev libkrb5-dev libtasn1-bin libparse-yapp-perl \
             libunwind-dev zlib1g-dev libncurses-dev libsystemd-dev \
             libavahi-client-dev libavahi-common-dev libglib2.0-dev \
-            perl flex bison liblmdb-dev xsltproc docbook-xsl libjson-c-dev libpam0g-dev libcrypt-dev libsasl2-dev
+            git ca-certificates perl flex bison liblmdb-dev xsltproc docbook-xsl libjson-c-dev libpam0g-dev libcrypt-dev libsasl2-dev
 
       - name: Resolve latest Samba version (跟随上游)
         run: |
