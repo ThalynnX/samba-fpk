@@ -24,7 +24,8 @@ CONF="${TRIM_PKGETC}/smb.conf"
 PID_DIR="${TRIM_PKGVAR}/pids"
 LOG_FILE="${TRIM_PKGVAR}/samba.log"
 
-mkdir -p "${PID_DIR}" "${TRIM_PKGVAR}/log" 2>/dev/null || true
+mkdir -p "${PID_DIR}" "${TRIM_PKGVAR}/log" "${TRIM_PKGVAR}/ncalrpc" \
+         "${TRIM_PKGVAR}/state" "${TRIM_PKGVAR}/cache" "${TRIM_PKGETC}/private" 2>/dev/null || true
 
 log_msg() {
     echo "$(date '+%Y-%m-%d %H:%M:%S') - $1" >> "${LOG_FILE}"
