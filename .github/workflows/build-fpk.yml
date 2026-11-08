@@ -75,7 +75,6 @@ jobs:
             --without-ad-dc \
             --without-ads \
             --without-gpgme \
-            --disable-selftest \
             --disable-cups \
             --disable-avahi
           echo "configure OK"
