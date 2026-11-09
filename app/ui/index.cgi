@@ -6,6 +6,9 @@
 
 APP_ID="com.thalynnx.samba"
 PREFIX="/var/apps/${APP_ID}/target/samba/prefix"
+
+# Samba 私有库需要显式加入搜索路径，否则 smbpasswd/smbclient 都会报找不到 .so
+export LD_LIBRARY_PATH="${PREFIX}/lib:${PREFIX}/lib/private${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 VAR="/var/apps/${APP_ID}/var"
 ETC="/var/apps/${APP_ID}/etc"
 CONF="${ETC}/smb.conf"
@@ -35,8 +38,9 @@ if [ "$REQUEST_METHOD" = "POST" ]; then
         stop)    bash /var/apps/${APP_ID}/cmd/main stop    >/dev/null 2>&1; msg="已停止" ;;
         adduser)
             if [ -n "$USER_" ] && [ -n "$PASS_" ]; then
-                out=$(printf '%s\n%s\n' "$PASS_" "$PASS_" | "${PREFIX}/bin/smbpasswd" -s -a "$USER_" 2>&1)
-                msg="账号 ${USER_} 已添加（需重启生效）：${out:-ok}"
+                out=$(printf '%s\n%s\n' "$PASS_" "$PASS_" | "${PREFIX}/bin/smbpasswd" -c "$CONF" -s -a "$USER_" 2>&1)
+                bash /var/apps/${APP_ID}/cmd/main restart >/dev/null 2>&1
+                msg="账号 ${USER_} 已添加并重启：${out:-ok}"
             else
                 msg="用户名或密码为空"
             fi ;;
