@@ -52,6 +52,11 @@ port_busy() {
     fi
 }
 
+port_listening() {
+    local port="$1"
+    command -v ss >/dev/null 2>&1 && ss -ltn 2>/dev/null | awk '{print $4}' | grep -qE "[:.]${port}$"
+}
+
 start_process() {
     if is_running; then
         return 0
@@ -77,17 +82,20 @@ start_process() {
     fi
 
     log_msg "Starting smbd on port ${port} ..."
-    "${SMBD}" -D -s "${CONF}" \
-        --pid-directory="${PID_DIR}" \
-        --log-basename="${TRIM_PKGVAR}/log/samba" \
-        >> "${LOG_FILE}" 2>&1
+    # smbd 只接受 -s/-l/-p 等少数参数，不认 --pid-directory；
+    # 用 setsid 前台启动并自己记 pid，避免 -D 之后拿不到进程号。
+    setsid "${SMBD}" -s "${CONF}" >> "${LOG_FILE}" 2>&1 &
+    echo $! > "${PID_DIR}/smbd.pid"
 
-    sleep 1
-    if is_running; then
-        log_msg "smbd started, pid=$(smb_pid)"
-        return 0
-    fi
-    log_msg "ERROR: smbd 启动失败，详见 ${TRIM_PKGVAR}/log/"
+    local n=0
+    while [ $n -lt 10 ]; do
+        if port_listening "${port}"; then
+            log_msg "smbd started, pid=$(smb_pid), port=${port}"
+            return 0
+        fi
+        sleep 1; n=$((n + 1))
+    done
+    log_msg "ERROR: smbd 启动失败（端口 ${port} 未监听），详见 ${TRIM_PKGVAR}/log/"
     return 1
 }
 
@@ -96,13 +104,16 @@ stop_process() {
     pid="$(smb_pid)"
     if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
         log_msg "Stopping smbd (pid=${pid}) ..."
-        "${PREFIX}/bin/smbcontrol" "$pid" shutdown 2>/dev/null \
-            || kill -TERM "$pid" 2>/dev/null
+        "${PREFIX}/bin/smbcontrol" "$pid" shutdown >/dev/null 2>&1 || true
         local n=0
-        while kill -0 "$pid" 2>/dev/null && [ $n -lt 15 ]; do
+        while kill -0 "$pid" 2>/dev/null && [ $n -lt 12 ]; do
             sleep 1; n=$((n + 1))
         done
-        kill -KILL "$pid" 2>/dev/null || true
+        if kill -0 "$pid" 2>/dev/null; then
+            kill -TERM -"$pid" 2>/dev/null || kill -TERM "$pid" 2>/dev/null || true
+            sleep 1
+        fi
+        kill -KILL -"$pid" 2>/dev/null || kill -KILL "$pid" 2>/dev/null || true
         log_msg "smbd stopped"
     fi
     rm -f "${PID_DIR}/smbd.pid"
