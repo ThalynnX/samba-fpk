@@ -77,6 +77,11 @@ start_process() {
     port="${port:-1445}"
 
     if port_busy "${port}"; then
+        # 端口被占，但占用的就是本应用自己的 smbd：视为已在运行，直接返回成功
+        if ps -eo cmd 2>/dev/null | grep -F "${SMBD}" | grep -qv 'grep'; then
+            log_msg "port ${port} 已由本应用 smbd 监听，跳过重复启动"
+            return 0
+        fi
         log_msg "ERROR: 端口 ${port} 已被占用（多为系统自带 Samba）。请改端口或先停用面板 SMB。"
         return 1
     fi
